@@ -49,3 +49,12 @@ pub trait Bind<Args: Head>: FnMut<Args> + Sized {
         }
     }
 }
+
+pub trait Compose<I, R> {
+    fn compose<T>(self, other: impl FnMut(T) -> I) -> impl FnMut(T) -> R;
+}
+impl<I, R, F: FnMut(I) -> R> Compose<I, R> for F {
+    fn compose<T>(mut self, mut other: impl FnMut(T) -> I) -> impl FnMut(T) -> R {
+        move |x| self(other(x))
+    }
+}
