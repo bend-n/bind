@@ -27,7 +27,22 @@ impl<$Hd $(, $Tail)*> Head for ($Hd, $($Tail),*) {
     }
 })?)}
 h![_13 _12 _11 _10 _9 _8 _7 _6 _5 _4 _3 _2 _1 _0];
-include!("res.rs");
+
+muiua::i! { r#"
+t ← ⍣/◇⊂₃"" @\s ⍚$"\__," ⇡+1
+impl ← (
+  ⊃(t|t|t-1|∘|t-1|t|t-1)
+  $$ impl<_> Last for (_) {
+  $$     type Init = (_);
+  $$     type Last = \__;
+  $$     fn il((_): Self::Init, last: Self::Last) -> (_) {
+  $$         (_ last,)
+  $$     }
+  $$ }
+)
+/◇⊂₃ @\n ⍚impl ⇡14
+"# }
+
 impl<Args: Head, F: FnMut<Args> + Sized> Bind<Args> for F {}
 pub trait Bind<Args: Head>: FnMut<Args> + Sized {
     fn bind<T: Clone>(self, with: T) -> impl FnMut<Args::Tail, Output = Self::Output>
