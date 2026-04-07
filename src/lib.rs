@@ -1,96 +1,57 @@
 #![feature(tuple_trait, unboxed_closures, fn_traits)]
 #![allow(private_bounds)]
 use core::ops::FnMut;
-use std::marker::Tuple;
 
-pub trait Head: Tuple + Last {
-    type Head;
-    type Tail: Tuple;
+use ttools::Tupl;
 
-    fn ht(_: Self::Head, _: Self::Tail) -> Self;
-}
-
-pub trait Last: Tuple {
-    type Init: Tuple;
-    type Last;
-    fn il(_: Self::Init, _: Self::Last) -> Self;
-}
-
-macro_rules! h {(
-  $($Hd:tt $($Tail:tt)*)?
-) => ($(h!($($Tail)*);)?$(
-impl<$Hd $(, $Tail)*> Head for ($Hd, $($Tail),*) {
-    type Head = $Hd;
-    type Tail = ($($Tail, )*);
-    fn ht($Hd: Self::Head, ($($Tail, )*): Self::Tail) -> Self {
-        ($Hd, $($Tail),*)
-    }
-})?)}
-h![_13 _12 _11 _10 _9 _8 _7 _6 _5 _4 _3 _2 _1 _0];
-
-muiua::i! { r#"
-t ← ⍣/◇⊂₃"" @\s ⍚$"\__," ⇡+1
-impl ← (
-  ⊃(t|t|t-1|∘|t-1|t|t-1)
-  $$ impl<_> Last for (_) {
-  $$     type Init = (_);
-  $$     type Last = \__;
-  $$     fn il((_): Self::Init, last: Self::Last) -> (_) {
-  $$         (_ last,)
-  $$     }
-  $$ }
-)
-/◇⊂₃ @\n ⍚impl ⇡14
-"# }
-
-impl<Args: Head, F: FnMut<Args> + Sized> Bind<Args> for F {}
-pub struct Fn1<Args: Head, F: FnMut<Args>> {
+impl<Args: Tupl, F: FnMut<Args> + Sized> Bind<Args> for F {}
+pub struct Fn1<Args: Tupl, F: FnMut<Args>> {
     f: F,
     t: Args::Head,
 }
-impl<Args: Head, F: FnMut<Args>> FnOnce<Args::Tail> for Fn1<Args, F> {
+impl<Args: Tupl, F: FnMut<Args>> FnOnce<Args::Tail> for Fn1<Args, F> {
     type Output = F::Output;
     extern "rust-call" fn call_once(mut self, args: Args::Tail) -> Self::Output {
-        let args = Args::ht(self.t, args);
+        let args = Args::cons(self.t, args);
         self.f.call_mut(args)
     }
 }
-impl<Args: Head<Head: Clone>, F: FnMut<Args>> FnMut<Args::Tail> for Fn1<Args, F> {
+impl<Args: Tupl<Head: Clone>, F: FnMut<Args>> FnMut<Args::Tail> for Fn1<Args, F> {
     extern "rust-call" fn call_mut(&mut self, args: Args::Tail) -> Self::Output {
-        let args = Args::ht(self.t.clone(), args);
+        let args = Args::cons(self.t.clone(), args);
         self.f.call_mut(args)
     }
 }
 
-pub struct Fn2<Args: Last, F: FnMut<Args>> {
+pub struct Fn2<Args: Tupl, F: FnMut<Args>> {
     f: F,
     t: Args::Last,
 }
-impl<Args: Last, F: FnMut<Args>> FnOnce<Args::Init> for Fn2<Args, F> {
+impl<Args: Tupl, F: FnMut<Args>> FnOnce<Args::Init> for Fn2<Args, F> {
     type Output = F::Output;
     extern "rust-call" fn call_once(mut self, args: Args::Init) -> Self::Output {
-        let args = Args::il(args, self.t);
+        let args = Args::snoc(args, self.t);
         self.f.call_mut(args)
     }
 }
-impl<Args: Last<Last: Clone>, F: FnMut<Args>> FnMut<Args::Init> for Fn2<Args, F> {
+impl<Args: Tupl<Last: Clone>, F: FnMut<Args>> FnMut<Args::Init> for Fn2<Args, F> {
     extern "rust-call" fn call_mut(&mut self, args: Args::Init) -> Self::Output {
-        let args = Args::il(args, self.t.clone());
+        let args = Args::snoc(args, self.t.clone());
 
         self.f.call_mut(args)
     }
 }
 
-pub trait Bind<Args: Head>: FnMut<Args> + Sized {
+pub trait Bind<Args: Tupl>: FnMut<Args> + Sized {
     fn bind<T>(self, with: T) -> Fn1<Args, Self>
     where
-        Args: Head<Head = T>,
+        Args: Tupl<Head = T>,
     {
         return Fn1 { f: self, t: with };
     }
     fn rbind<T: Clone>(self, with: T) -> Fn2<Args, Self>
     where
-        Args: Last<Last = T>,
+        Args: Tupl<Last = T>,
     {
         return Fn2 { f: self, t: with };
     }
@@ -103,4 +64,11 @@ impl<I, R, F: FnMut(I) -> R> Compose<I, R> for F {
     fn compose<T>(mut self, mut other: impl FnMut(T) -> I) -> impl FnMut(T) -> R {
         move |x| self(other(x))
     }
+}
+
+#[test]
+fn x() {
+    let x = |x: u32, y: u32, z: u32| x + y + z;
+    let mut x = x.bind(4).bind(5);
+    let z = x(4);
 }

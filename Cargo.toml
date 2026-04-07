@@ -4,4 +4,4 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-muiua = { git = "https://git.bendn.org/muiua", version = "0.1.0" }
+ttools = "0.1.2"
